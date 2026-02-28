@@ -125,5 +125,5 @@ class STT:
         self.run=False
 
 if __name__ == "__main__":
-    recognizer = StreamingRecognizer("base")
+    recognizer = STT("base")
     recognizer.start()
