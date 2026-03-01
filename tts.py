@@ -25,14 +25,38 @@ class TTS:
                                 speaker=model)
     
     def _normalize_text(self, text):
-        inp_ids = self.tokenizer(text, return_tensors="pt").input_ids
-        out_ids = self.normalizer.generate(inp_ids, max_new_tokens=128)[0]
-        result = self.tokenizer.decode(out_ids, skip_special_tokens=True)
-        return result
+        # Проверяем, есть ли что нормализовать
+        if self._needs_normalization(text):
+            inp_ids = self.tokenizer(text, return_tensors="pt").input_ids
+            out_ids = self.normalizer.generate(inp_ids, max_new_tokens=128)[0]
+            result = self.tokenizer.decode(out_ids, skip_special_tokens=True)
+            return result
+        else:
+            return text  # возвращаем как есть
 
-    def _speak(self, text):
+    def _needs_normalization(self, text):
+        """Проверяет, нужна ли нормализация"""
+        # Проверяем наличие чисел
+        if any(c.isdigit() for c in text):
+            return True
+        if any(c in ["qwertyuiopasdfghjklzxcvbnm"] for c in text):
+            return True
+        # Проверяем наличие дат (через регулярку)
+        import re
+        if re.search(r'\d{1,2}[.\-]\d{1,2}[.\-]\d{2,4}', text):
+            return True
+        # Проверяем наличие времени
+        if re.search(r'\d{1,2}:\d{2}', text):
+            return True
+        # Проверяем наличие URL/email
+        if '@' in text or 'http' in text:
+            return True
+        return False
+
+    def speak(self, text):
         # Генерация речи
         self.can_paly=True
+        #print(self._normalize_text(text))
         audio = self.model.apply_tts(text=self._normalize_text(text),
                                 speaker=self.speaker,
                                 sample_rate=48000)
@@ -40,7 +64,7 @@ class TTS:
         audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=2)
         sd.play(audio_shifted, 48000)
         while self.can_paly and sd.get_stream().active:
-            print(self.can_paly)
+            #print(self.can_paly)
             time.sleep(0.1)
     def speak_async(self, text):
         self.stop()
@@ -51,7 +75,7 @@ class TTS:
 
     def stop(self):
         self.can_paly=False
-        print(self.can_paly)
+        #print(self.can_paly)
         if self.play_thread and self.play_thread.is_alive():
             self.play_thread.join(timeout=0.1)
         
@@ -59,8 +83,9 @@ class TTS:
 
 if __name__=="__main__":
     tts=TTS(4,"kseniya","v5_1_ru")
-    tts.speak_async("привет, мир! И снова 3 сентября...")
-    time.sleep(5)
-    tts.stop()
-    tts.speak_async("Translation: To go to Office, press the  button and search for in the search bar.")
-    input()
+    tts.speak("Привет!")
+    #tts.speak_async("привет, мир! И снова 3 сентября...")
+    #time.sleep(5)
+    #tts.stop()
+    #tts.speak_async("Translation: To go to Office, press the  button and search for in the search bar.")
+    #input()
