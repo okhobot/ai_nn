@@ -42,7 +42,8 @@ class STT:
         
         frames = []
         silent_chunks = 0
-        
+        record=False
+
         while True:
             data = stream.read(self.CHUNK)
 
@@ -50,17 +51,19 @@ class STT:
             audio_data = (audio_data * self.GAIN_FACTOR).clip(-32768, 32767).astype(np.int16)
             data = audio_data.tobytes()
 
-            frames.append(data)
+            if record:
+                frames.append(data)
             
             audio_data = np.frombuffer(data, dtype=np.int16)
             volume = np.abs(audio_data).mean()
             
             if volume < self.SILENCE_THRESHOLD:
                 silent_chunks += 1
+                record=True
             else:
                 silent_chunks = 0
             
-            if silent_chunks > (self.SILENCE_DURATION * self.RATE / self.CHUNK):
+            if record and silent_chunks > (self.SILENCE_DURATION * self.RATE / self.CHUNK):
                 break
         
         stream.stop_stream()
@@ -82,9 +85,9 @@ class STT:
     def transcribe_audio(self):
         while self.run:
             if not self.audio_queue.empty():
+                wav_buffer = self.audio_queue.get()
                 if self.func_thred!=None and self.func_thred.is_alive():
                     continue
-                wav_buffer = self.audio_queue.get()
                 
                 segments, info = self.model.transcribe(
                     wav_buffer,
@@ -124,6 +127,9 @@ class STT:
     def stop(self):
         self.run=False
 
+
 if __name__ == "__main__":
-    recognizer = STT("base")
+    recognizer = STT(print, "base")
     recognizer.start()
+    while True:
+        pass
