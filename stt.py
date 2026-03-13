@@ -6,15 +6,18 @@ import threading
 import time
 import wave
 import io
+import noisereduce as nr
+
 
 class STT:
     transcribe_thread=None
     record_thread=None
     func_thred=None
-    def __init__(self, call_func, model_size="base", device="cpu",silence_threshold=500, silence_duration=1,gain_factor=1):
+    def __init__(self, call_func, model_size="base", device="cpu",silence_threshold=500, silence_duration=1,gain_factor=1, use_nr=False):
         self.model = WhisperModel(model_size, device=device, compute_type="int8")
         self.audio_queue = queue.Queue()
         self.run=False
+        self.use_nr=use_nr
         
         # Настройки аудио
         self.CHUNK = 1024
@@ -32,6 +35,36 @@ class STT:
             dev_info = p.get_device_info_by_index(i)
             if "stereo" in dev_info['name'].lower() or "what u hear" in dev_info['name'].lower():
                 return i
+            
+    def calibrate(self, time=5):
+        p = pyaudio.PyAudio()
+        stream = p.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
+                    input=True, frames_per_buffer=self.CHUNK, 
+                    input_device_index=p.get_default_host_api_info()["index"])
+        
+        frames = []
+        # Рассчитываем, сколько фрагментов нужно для 5 секунд записи
+        total_frames = int(self.RATE / self.CHUNK * time)
+        
+        for i in range(total_frames):
+            data = stream.read(self.CHUNK)
+            frames.append(data)
+        
+        stream.stop_stream()
+        stream.close()
+        
+        # Объединяем все фрагменты в один байтовый поток
+        full_data = b''.join(frames)
+        
+        # Преобразуем в numpy массив для обработки
+        audio_data = np.frombuffer(full_data, dtype=np.int16)
+        audio_data = (audio_data * self.GAIN_FACTOR).clip(-32768, 32767).astype(np.int16)
+        if self.use_nr: 
+            audio_data = nr.reduce_noise(y=audio_data, sr=self.RATE)
+        
+        self.SILENCE_THRESHOLD = (np.abs(audio_data).max()*2+np.abs(audio_data).mean())/3
+        print("st: ", self.SILENCE_THRESHOLD, len(audio_data))
+
         
     def record_audio_block(self):
         p = pyaudio.PyAudio()
@@ -49,23 +82,29 @@ class STT:
 
             audio_data = np.frombuffer(data, dtype=np.int16)
             audio_data = (audio_data * self.GAIN_FACTOR).clip(-32768, 32767).astype(np.int16)
+            if self.use_nr:
+                audio_data = nr.reduce_noise(y=audio_data, sr=self.RATE)
+            volume = np.abs(audio_data).mean()
+
             data = audio_data.tobytes()
 
-            if record:
-                frames.append(data)
+            frames.append(data)
+            if not record:
+                frames=frames[-int(self.RATE / self.CHUNK * 1):]
             
-            audio_data = np.frombuffer(data, dtype=np.int16)
-            volume = np.abs(audio_data).mean()
+            #print(volume)
             
             if volume < self.SILENCE_THRESHOLD:
                 silent_chunks += 1
-                record=True
             else:
                 silent_chunks = 0
+                if not record: print("recording")
+                record=True
+                silent_chunks=0
             
             if record and silent_chunks > (self.SILENCE_DURATION * self.RATE / self.CHUNK):
                 break
-        
+        print("recorded")
         stream.stop_stream()
         stream.close()
         p.terminate()
@@ -78,6 +117,8 @@ class STT:
         wf.setframerate(self.RATE)
         wf.writeframes(b''.join(frames))
         wf.close()
+
+        #with open("test.wav", 'wb') as f: f.write(wav_buffer.getvalue())
         
         wav_buffer.seek(0)
         self.audio_queue.put(wav_buffer)
@@ -88,6 +129,7 @@ class STT:
                 wav_buffer = self.audio_queue.get()
                 if self.func_thred!=None and self.func_thred.is_alive():
                     continue
+
                 
                 segments, info = self.model.transcribe(
                     wav_buffer,
@@ -129,7 +171,10 @@ class STT:
 
 
 if __name__ == "__main__":
-    recognizer = STT(print, "base")
+    recognizer = STT(print, "base", use_nr=False)
+    
+    recognizer.calibrate(2)
+    print("start")
     recognizer.start()
-    while True:
-        pass
+    input()
+    recognizer.stop()

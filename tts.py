@@ -39,7 +39,7 @@ class TTS:
         # Проверяем наличие чисел
         if any(c.isdigit() for c in text):
             return True
-        if any(c in ["qwertyuiopasdfghjklzxcvbnm"] for c in text):
+        if any(c.lower() in ["qwertyuiopasdfghjklzxcvbnm"] for c in text):
             return True
         # Проверяем наличие дат (через регулярку)
         import re

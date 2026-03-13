@@ -65,7 +65,7 @@ def on_input_text(text):
 
 neuro=nn.NN("tiiuae/Falcon-H1-1.5B-Instruct-GGUF", "Falcon-H1-1.5B-Instruct-Q4_0.gguf","config/hf_token.txt",True)
 tts=TTS(5,"kseniya")
-stt=STT(on_input_text, "small","cpu",600)
+stt=STT(on_input_text, "small","cpu", use_nr=True)
 talker=Talker()
 with open("config/init_prompt.txt", encoding="utf-8") as f:
     print(neuro.chat(f.read()))
@@ -87,6 +87,7 @@ print(
     ,"user")
 )
 """
+stt.calibrate(2)
 print("начало диалога")
 stt.start()
 func_thred = threading.Thread(target=talker.talk)
