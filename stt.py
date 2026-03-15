@@ -13,11 +13,15 @@ class STT:
     transcribe_thread=None
     record_thread=None
     func_thred=None
-    def __init__(self, call_func, model_size="base", device="cpu",silence_threshold=500, silence_duration=1,gain_factor=1, use_nr=False):
+    def __init__(self, call_func, model_size="base", device="cpu",silence_threshold=500, silence_duration=1,gain_factor=1, use_nr=False, device_index=-1):
         self.model = WhisperModel(model_size, device=device, compute_type="int8")
         self.audio_queue = queue.Queue()
         self.run=False
         self.use_nr=use_nr
+
+        self.device_index=device_index
+        p = pyaudio.PyAudio()
+        if device_index==-1: self.device_index=p.get_default_host_api_info()["index"]
         
         # Настройки аудио
         self.CHUNK = 1024
@@ -29,18 +33,13 @@ class STT:
         self.GAIN_FACTOR = 1
         self.call_func=call_func
 
-    def get_stereo_index():
-        p = pyaudio.PyAudio()
-        for i in range(p.get_device_count()):
-            dev_info = p.get_device_info_by_index(i)
-            if "stereo" in dev_info['name'].lower() or "what u hear" in dev_info['name'].lower():
-                return i
+            
             
     def calibrate(self, time=5):
         p = pyaudio.PyAudio()
         stream = p.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
                     input=True, frames_per_buffer=self.CHUNK, 
-                    input_device_index=p.get_default_host_api_info()["index"])
+                    input_device_index=self.device_index)
         
         frames = []
         # Рассчитываем, сколько фрагментов нужно для 5 секунд записи
@@ -69,7 +68,7 @@ class STT:
     def record_audio_block(self):
         p = pyaudio.PyAudio()
         stream = p.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
-                       input=True, frames_per_buffer=self.CHUNK, input_device_index=p.get_default_host_api_info()["index"])
+                       input=True, frames_per_buffer=self.CHUNK, input_device_index=self.device_index)
         
         #print("Говорите... (пауза 2 сек для остановки)")
         
@@ -96,11 +95,11 @@ class STT:
             
             if volume < self.SILENCE_THRESHOLD:
                 silent_chunks += 1
-            else:
-                silent_chunks = 0
-                if not record: print("recording")
-                record=True
-                silent_chunks=0
+            elif self.func_thred==None or not self.func_thred.is_alive():
+                    silent_chunks = 0
+                    if not record: print("recording")
+                    record=True
+                    silent_chunks=0
             
             if record and silent_chunks > (self.SILENCE_DURATION * self.RATE / self.CHUNK):
                 break
@@ -171,7 +170,7 @@ class STT:
 
 
 if __name__ == "__main__":
-    recognizer = STT(print, "base", use_nr=False)
+    recognizer = STT(print, "base", use_nr=False, device_index=0)
     
     recognizer.calibrate(2)
     print("start")
