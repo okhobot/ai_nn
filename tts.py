@@ -40,7 +40,7 @@ class TTS:
         # Проверяем наличие чисел
         if any(c.isdigit() for c in text):
             return True
-        if any(c.lower() in ["qwertyuiopasdfghjklzxcvbnm"] for c in text):
+        if any((c.lower() in "qwertyuiopasdfghjklzxcvbnm") for c in text):
             return True
         # Проверяем наличие дат (через регулярку)
         import re
@@ -84,7 +84,7 @@ class TTS:
 
 if __name__=="__main__":
     tts=TTS(4,"kseniya","v5_1_ru")
-    tts.speak("Привет!")
+    tts.speak("Привет, мир!")
     #tts.speak_async("привет, мир! И снова 3 сентября...")
     #time.sleep(5)
     #tts.stop()
