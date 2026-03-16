@@ -10,10 +10,10 @@ class TTS:
     model=None
     pithc_shift=0
     can_paly=True
-    def __init__(self, pithc_shift=0, speaker="kseniya", model="v5_1_ru"):
+    def __init__(self, pithc_shift=0, speaker="kseniya", model="v5_1_ru", offline=False):
         model_path = "maximxls/text-normalization-ru-terrible"
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path)
-        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path)
+        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path, local_files_only=offline)
+        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline)
         
         self.speaker=speaker
         self.pithc_shift=pithc_shift
@@ -22,7 +22,8 @@ class TTS:
         self.model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
                                 model='silero_tts',
                                 language='ru',
-                                speaker=model)
+                                speaker=model,
+                                local_files_only=offline)
     
     def _normalize_text(self, text):
         # Проверяем, есть ли что нормализовать
@@ -61,7 +62,7 @@ class TTS:
                                 speaker=self.speaker,
                                 sample_rate=48000)
         audio_np = audio.numpy()
-        audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=2)
+        audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=self.pithc_shift)
         sd.play(audio_shifted, 48000)
         while self.can_paly and sd.get_stream().active:
             #print(self.can_paly)

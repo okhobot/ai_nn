@@ -61,7 +61,7 @@ class STT:
         if self.use_nr: 
             audio_data = nr.reduce_noise(y=audio_data, sr=self.RATE)
         
-        self.SILENCE_THRESHOLD = (np.abs(audio_data).max()*2+np.abs(audio_data).mean())/3
+        self.SILENCE_THRESHOLD = (np.abs(audio_data).max()+np.abs(audio_data).mean())/2
         print("st: ", self.SILENCE_THRESHOLD, len(audio_data))
 
         
