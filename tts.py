@@ -10,26 +10,28 @@ class TTS:
     model=None
     pithc_shift=0
     can_paly=True
-    def __init__(self, pithc_shift=0, speaker="kseniya", model="v5_1_ru", offline=False):
+    def __init__(self, pithc_shift=0, speaker="kseniya", model="v5_1_ru", cache_dir=None, offline=False):
         model_path = "maximxls/text-normalization-ru-terrible"
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path, local_files_only=offline)
-        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline)
+        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
+        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline,cache_dir=cache_dir)
         
         self.speaker=speaker
         self.pithc_shift=pithc_shift
         self.play_thread = None
         # Загрузка модели
+        if cache_dir: torch.hub.set_dir(cache_dir)
         self.model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
                                 model='silero_tts',
                                 language='ru',
                                 speaker=model,
-                                local_files_only=offline)
+                                local_files_only=offline
+                                )
     
     def _normalize_text(self, text):
         # Проверяем, есть ли что нормализовать
         if self._needs_normalization(text):
             inp_ids = self.tokenizer(text, return_tensors="pt").input_ids
-            out_ids = self.normalizer.generate(inp_ids, max_new_tokens=128)[0]
+            out_ids = self.normalizer.generate(inp_ids, max_new_tokens=512)[0]
             result = self.tokenizer.decode(out_ids, skip_special_tokens=True)
             return result
         else:

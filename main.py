@@ -52,7 +52,7 @@ def split_powershell_blocks(text):
     
     return remaining, blocks
 
-def on_input_text(text):
+def on_input_text(text, depth=0):
     print(">> "+text)
     res=neuro.chat(text)
     text, powershell=split_powershell_blocks(res)
@@ -65,17 +65,19 @@ def on_input_text(text):
     #talker.set_text(res)
     tts.speak(text)
 
-    if len(powershell)>0:
+    if len(powershell)>0 and depth<2:
         cmd_out=run_powershell_command(powershell[0])
         print(cmd_out)
-        on_input_text(cmd_out[1])
+        on_input_text("вывод консоли: "+cmd_out[0]+"\n"+cmd_out[1], depth+1)
     
 json_config=None
 with open('config/config.json', 'r', encoding='utf-8') as f: json_config = json.load(f)
+if json_config["cache_dir"]=="":json_config["cache_dir"]=None
 
 neuro=nn.NN(
     repo_id= json_config["model"]["repo_id"], 
     filename= json_config["model"]["filename"],
+    cache_dir=json_config["cache_dir"],
     hf_token= json_config["hf_token"],
     use_gpu=True, 
     offline=json_config["offline"],
@@ -85,13 +87,15 @@ neuro=nn.NN(
 tts=TTS(
     pithc_shift= json_config["tts"]["pitch_shift"],
     speaker= json_config["tts"]["speaker_name"],
+    cache_dir=json_config["cache_dir"],
     offline=json_config["offline"]
     )
 
 stt=STT(
     call_func=on_input_text, 
     model_size= json_config["stt"]["model"],
-    device=json_config["stt"]["device"], 
+    device=json_config["stt"]["device"],
+    cache_dir=json_config["cache_dir"], 
     use_nr=json_config["stt"]["use_nr"]
     )
 

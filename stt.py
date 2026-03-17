@@ -13,8 +13,8 @@ class STT:
     transcribe_thread=None
     record_thread=None
     func_thred=None
-    def __init__(self, call_func, model_size="base", device="cpu",silence_threshold=500, silence_duration=1,gain_factor=1, use_nr=False, device_index=-1):
-        self.model = WhisperModel(model_size, device=device, compute_type="int8")
+    def __init__(self, call_func, model_size="base", device="cpu",silence_threshold=500, silence_duration=1,gain_factor=1, use_nr=False, device_index=-1, cache_dir=None):
+        self.model = WhisperModel(model_size, device=device, compute_type="int8", download_root=cache_dir)
         self.audio_queue = queue.Queue()
         self.run=False
         self.use_nr=use_nr
@@ -47,21 +47,23 @@ class STT:
         
         for i in range(total_frames):
             data = stream.read(self.CHUNK)
-            frames.append(data)
-        
+            # Преобразуем в numpy массив для обработки
+            audio_data = np.frombuffer(data, dtype=np.int16)
+            audio_data = (audio_data * self.GAIN_FACTOR).clip(-32768, 32767).astype(np.int16)
+            if self.use_nr: 
+                audio_data = nr.reduce_noise(y=audio_data, sr=self.RATE)
+            
+            self.SILENCE_THRESHOLD += np.abs(audio_data).mean()
+            
         stream.stop_stream()
         stream.close()
+        #frames.append(data)
         
         # Объединяем все фрагменты в один байтовый поток
-        full_data = b''.join(frames)
+        #full_data = b''.join(frames)
+        self.SILENCE_THRESHOLD/=total_frames
+        self.SILENCE_THRESHOLD*=1.5
         
-        # Преобразуем в numpy массив для обработки
-        audio_data = np.frombuffer(full_data, dtype=np.int16)
-        audio_data = (audio_data * self.GAIN_FACTOR).clip(-32768, 32767).astype(np.int16)
-        if self.use_nr: 
-            audio_data = nr.reduce_noise(y=audio_data, sr=self.RATE)
-        
-        self.SILENCE_THRESHOLD = (np.abs(audio_data).max()+np.abs(audio_data).mean())/2
         print("st: ", self.SILENCE_THRESHOLD, len(audio_data))
 
         
@@ -117,7 +119,7 @@ class STT:
         wf.writeframes(b''.join(frames))
         wf.close()
 
-        #with open("test.wav", 'wb') as f: f.write(wav_buffer.getvalue())
+        with open("test.wav", 'wb') as f: f.write(wav_buffer.getvalue())
         
         wav_buffer.seek(0)
         self.audio_queue.put(wav_buffer)
