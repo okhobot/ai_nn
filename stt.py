@@ -119,7 +119,7 @@ class STT:
         wf.writeframes(b''.join(frames))
         wf.close()
 
-        with open("test.wav", 'wb') as f: f.write(wav_buffer.getvalue())
+        #with open("test.wav", 'wb') as f: f.write(wav_buffer.getvalue())
         
         wav_buffer.seek(0)
         self.audio_queue.put(wav_buffer)
