@@ -42,7 +42,7 @@ def run_powershell_command(command):
     
 def split_powershell_blocks(text):
     # Паттерн для поиска блоков ```powershell ... ```
-    pattern = r'```powershell\n(.*?)```'
+    pattern = r'```powershell(.*?)```'
     
     # Находим все блоки
     blocks = re.findall(pattern, text, re.DOTALL)
@@ -60,15 +60,15 @@ def on_input_text(text, depth=0):
     print(powershell)
 
     if len(text)==0:
-        text="ок"
+        text="ладно"
     
     #talker.set_text(res)
     tts.speak(text)
 
-    if len(powershell)>0 and depth<2:
+    if len(powershell)>0:
         cmd_out=run_powershell_command(powershell[0])
         print(cmd_out)
-        on_input_text("вывод консоли: "+cmd_out[0]+"\n"+cmd_out[1], depth+1)
+        if len(cmd_out[0]+cmd_out[1])>0 and depth<json_config["model"]["max_console_op_depth"]: on_input_text("вывод консоли: "+cmd_out[0]+"\n"+cmd_out[1], depth+1)
     
 json_config=None
 with open('config/config.json', 'r', encoding='utf-8') as f: json_config = json.load(f)

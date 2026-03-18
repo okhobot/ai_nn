@@ -62,7 +62,7 @@ class STT:
         # Объединяем все фрагменты в один байтовый поток
         #full_data = b''.join(frames)
         self.SILENCE_THRESHOLD/=total_frames
-        self.SILENCE_THRESHOLD*=1.5
+        self.SILENCE_THRESHOLD*=4
         
         print("st: ", self.SILENCE_THRESHOLD, len(audio_data))
 
