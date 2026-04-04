@@ -56,7 +56,7 @@ class TTS:
             return True
         return False
 
-    def speak(self, text):
+    def generate_speech(self, text):
         # Генерация речи
         self.can_paly=True
         #print(self._normalize_text(text))
@@ -65,14 +65,17 @@ class TTS:
                                 sample_rate=48000)
         audio_np = audio.numpy()
         audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=self.pithc_shift)
-        sd.play(audio_shifted, 48000)
+        return audio_shifted
+
+    def speak(self, text):
+        sd.play(self.generate_speech(text), 48000)
         while self.can_paly and sd.get_stream().active:
             #print(self.can_paly)
-            time.sleep(0.1)
+            time.sleep(0.01)
     def speak_async(self, text):
         self.stop()
         
-        self.play_thread = threading.Thread(target=self._speak, args=(text,))
+        self.play_thread = threading.Thread(target=self.speak, args=(text,))
         self.play_thread.daemon = True
         self.play_thread.start()
 
@@ -85,10 +88,26 @@ class TTS:
         
 
 if __name__=="__main__":
-    tts=TTS(4,"kseniya","v5_1_ru")
-    tts.speak("Привет, мир!")
-    #tts.speak_async("привет, мир! И снова 3 сентября...")
+    tts=TTS(3,"kseniya","v5_1_ru")
+    #tts.speak("Привет, мир!")
+    """
+    text="привет, мир. И снова третье сентября..."
+    speech=[]
+    for word in [text]:
+        print(word)
+        speech.append(tts.generate_speech(word))
+
+    sd.play(speech[0],48000)
+    speech.pop(0)
+
+    while True:
+        if  not sd.get_stream().active and len(speech)>0:
+            sd.play(speech[0],48000)
+            speech.pop(0)
+            """
+
+    tts.speak_async("привет, мир! И снова 3 сентября...")
     #time.sleep(5)
     #tts.stop()
     #tts.speak_async("Translation: To go to Office, press the  button and search for in the search bar.")
-    #input()
+    input()
