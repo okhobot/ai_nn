@@ -35,7 +35,7 @@ class NN:
         )
 
 
-    def chat(self, objects, max_new_tokens=128, role="user"):
+    def chat(self, objects, max_new_tokens=128, role="user", stream=False):
         reset = False
         if len(self.history) >= self.max_history_len:
             while len(self.history) > self.save_history_count and len(self.history) > self.max_history_len - self.reset_history_count:
@@ -47,16 +47,41 @@ class NN:
                 "role": role,
                 "content": objects
             })
-        #print((self.history))
-        response = self.llm.create_chat_completion(self.history, temperature=0.5, max_tokens=max_new_tokens)
-        self.history.append(response['choices'][0]['message'])
-        
-        
-        return response['choices'][0]['message']['content']
-    
+             
+        if stream:
+            # Create a streaming completion request
+            response = self.llm.create_chat_completion(
+                self.history, 
+                temperature=0.5, 
+                max_tokens=max_new_tokens,
+                stream=True
+            )
+            
+            # Initialize the message to accumulate the streamed content
+            accumulated_message = {"role": "assistant", "content": ""}
+            full_response = ""
+            
+            # Yield each token as it arrives
+            for chunk in response:
+                delta = chunk['choices'][0]['delta']
+                if 'content' in delta:
+                    content = delta['content']
+                    full_response += content
+                    yield content  # Stream the content as it's generated
+            
+            # After streaming is done, append the complete message to history
+            accumulated_message['content'] = full_response
+            self.history.append(accumulated_message)
+        else:
+            # Original non-streaming behavior
+            response = self.llm.create_chat_completion(self.history, temperature=0.5, max_tokens=max_new_tokens)
+            self.history.append(response['choices'][0]['message'])
+            return response['choices'][0]['message']['content']
+
+
     def chat_no_history(self, objects, max_new_tokens=128, role="user"):
         self.llm.reset()
-        response = self.llm.create_chat_completion({"role": role, "content": objects}, temperature=0.5, max_tokens=max_new_tokens)        
+        response = self.llm.create_chat_completion([{"role": role, "content": objects}], temperature=0.5, max_tokens=max_new_tokens)        
         self.llm.reset()
 
         return response['choices'][0]['message']['content']
