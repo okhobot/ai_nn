@@ -7,7 +7,8 @@
         "filename": "__model_file__",
         "init_prompt_path": "config/init_prompt.txt",
         "init_prompt_role": "user",
-        "max_console_op_depth": 1
+        "max_console_op_depth": 1,
+        "load_embeddings_count": 2
     },
     "tts": {
         "pitch_shift": 1,
