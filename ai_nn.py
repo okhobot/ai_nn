@@ -31,6 +31,7 @@ class Talker:
 
 class Ai_NN:
     def __init__(self, path_to_config="config/config.json"):
+        self.text_to_say=""
         self.mem_notes=[]
         with open(path_to_config, 'r', encoding='utf-8') as f: 
             self.json_config = json.load(f)
@@ -109,6 +110,7 @@ class Ai_NN:
             text="ладно"
         
         #talker.set_text(res)
+        text_to_say=text_to_say
         self.tts.speak(text)
 
         self.process_calls(text_blocks,self.on_input_text,depth)
@@ -162,6 +164,9 @@ class Ai_NN:
     
     def calibrate(self, time):
         self.stt.calibrate(2)
+
+    def get_text_to_say(self):
+        return self.text_to_say
 
 
 nn=Ai_NN()
