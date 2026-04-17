@@ -6,17 +6,18 @@ import threading
 import time 
 
 class TTS:
-    speaker="kseniya"#aidar, baya, kseniya, eugene, xenia
-    model=None
-    pithc_shift=0
-    can_paly=True
-    def __init__(self, pithc_shift=0, speaker="kseniya", model="v5_1_ru", cache_dir=None, offline=False):
+    speaker = "kseniya"  # aidar, baya, kseniya, eugene, xenia
+    model = None
+    pitch_shift = 0
+    can_play = True
+    
+    def __init__(self, pitch_shift=0, speaker="kseniya", model="v5_1_ru", cache_dir=None, offline=False):
         model_path = "maximxls/text-normalization-ru-terrible"
         self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
-        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline,cache_dir=cache_dir)
+        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
         
-        self.speaker=speaker
-        self.pithc_shift=pithc_shift
+        self.speaker = speaker
+        self.pitch_shift = pitch_shift
         self.play_thread = None
         # Загрузка модели
         if cache_dir: torch.hub.set_dir(cache_dir)
@@ -58,20 +59,21 @@ class TTS:
 
     def generate_speech(self, text):
         # Генерация речи
-        self.can_paly=True
+        self.can_play = True
         #print(self._normalize_text(text))
         audio = self.model.apply_tts(text=self._normalize_text(text),
                                 speaker=self.speaker,
                                 sample_rate=48000)
         audio_np = audio.numpy()
-        audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=self.pithc_shift)
+        audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=self.pitch_shift)
         return audio_shifted
 
     def speak(self, text):
         sd.play(self.generate_speech(text), 48000)
-        while self.can_paly and sd.get_stream().active:
+        while self.can_play and sd.get_stream().active:
             #print(self.can_paly)
             time.sleep(0.01)
+    
     def speak_async(self, text):
         self.stop()
         
@@ -80,15 +82,14 @@ class TTS:
         self.play_thread.start()
 
     def stop(self):
-        self.can_paly=False
-        #print(self.can_paly)
+        self.can_play = False
+        #print(self.can_play)
         if self.play_thread and self.play_thread.is_alive():
             self.play_thread.join(timeout=0.1)
         
-        
 
-if __name__=="__main__":
-    tts=TTS(3,"kseniya","v5_1_ru")
+if __name__ == "__main__":
+    tts = TTS(3, "kseniya", "v5_1_ru")
     #tts.speak("Привет, мир!")
     """
     text="привет, мир. И снова третье сентября..."
