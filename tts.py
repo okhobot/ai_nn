@@ -11,21 +11,19 @@ class TTS:
     pitch_shift = 0
     can_play = True
     
-    def __init__(self, pitch_shift=0, speaker="kseniya", model="v5_1_ru", cache_dir=None, offline=False):
+    def __init__(self, pitch_shift=0, speaker="kseniya", model="v5_1_ru"):
         model_path = "maximxls/text-normalization-ru-terrible"
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
-        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
+        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path)
+        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path)
         
         self.speaker = speaker
         self.pitch_shift = pitch_shift
         self.play_thread = None
         # Загрузка модели
-        if cache_dir: torch.hub.set_dir(cache_dir)
         self.model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
                                 model='silero_tts',
                                 language='ru',
-                                speaker=model,
-                                local_files_only=offline
+                                speaker=model
                                 )
     
     def _normalize_text(self, text):
