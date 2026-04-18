@@ -1,78 +1,35 @@
 import torch
 import sounddevice as sd
 import librosa
-from transformers import T5ForConditionalGeneration, PreTrainedTokenizerFast
+import numpy as np
 import threading
 import time 
+from voice_player import VoicePlayer
+from faster_qwen3_tts import FasterQwen3TTS
 
 class TTS:
-    speaker = "kseniya"  # aidar, baya, kseniya, eugene, xenia
-    model = None
-    pitch_shift = 0
-    can_play = True
-    
-    def __init__(self, pitch_shift=0, speaker="kseniya", model="v5_1_ru", cache_dir=None, offline=False):
-        model_path = "maximxls/text-normalization-ru-terrible"
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
-        self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path, local_files_only=offline, cache_dir=cache_dir)
-        
+    def __init__(self, pitch_shift=0, speaker="ref.wav", model_name="Qwen/Qwen3-TTS-12Hz-0.6B-Base"):
+        self.player = VoicePlayer()
         self.speaker = speaker
         self.pitch_shift = pitch_shift
         self.play_thread = None
         # Загрузка модели
-        if cache_dir: torch.hub.set_dir(cache_dir)
-        self.model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
-                                model='silero_tts',
-                                language='ru',
-                                speaker=model,
-                                local_files_only=offline
-                                )
-    
-    def _normalize_text(self, text):
-        # Проверяем, есть ли что нормализовать
-        if self._needs_normalization(text):
-            inp_ids = self.tokenizer(text, return_tensors="pt").input_ids
-            out_ids = self.normalizer.generate(inp_ids, max_new_tokens=512)[0]
-            result = self.tokenizer.decode(out_ids, skip_special_tokens=True)
-            return result
-        else:
-            return text  # возвращаем как есть
-
-    def _needs_normalization(self, text):
-        """Проверяет, нужна ли нормализация"""
-        # Проверяем наличие чисел
-        if any(c.isdigit() for c in text):
-            return True
-        if any((c.lower() in "qwertyuiopasdfghjklzxcvbnm") for c in text):
-            return True
-        # Проверяем наличие дат (через регулярку)
-        import re
-        if re.search(r'\d{1,2}[.\-]\d{1,2}[.\-]\d{2,4}', text):
-            return True
-        # Проверяем наличие времени
-        if re.search(r'\d{1,2}:\d{2}', text):
-            return True
-        # Проверяем наличие URL/email
-        if '@' in text or 'http' in text:
-            return True
-        return False
-
-    def generate_speech(self, text):
-        # Генерация речи
-        self.can_play = True
-        #print(self._normalize_text(text))
-        audio = self.model.apply_tts(text=self._normalize_text(text),
-                                speaker=self.speaker,
-                                sample_rate=48000)
-        audio_np = audio.numpy()
-        audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=self.pitch_shift)
-        return audio_shifted
+        self.model = FasterQwen3TTS.from_pretrained(model_name) 
+        self.prompt_items = self.model.model.create_voice_clone_prompt(ref_audio=speaker, ref_text="Идет ли дождь в Калифорнии? Это единственный сон, который я видела. НЯ!!", x_vector_only_mode=True)
 
     def speak(self, text):
-        sd.play(self.generate_speech(text), 48000)
-        while self.can_play and sd.get_stream().active:
-            #print(self.can_paly)
-            time.sleep(0.01)
+        self.player.start()
+        for chunk, sr, _ in self.model.generate_voice_clone_streaming(
+            text=text,
+            language="Russian",
+            voice_clone_prompt=self.prompt_items,
+            chunk_size=4,  # меньше = меньше задержка, но больше накладных расходов
+            ):
+            audio_shifted = librosa.effects.pitch_shift(chunk, sr=sr, n_steps=self.pitch_shift)
+            self.player.add_chunk(audio_shifted)  # чанк уже в нужном sample_rate
+
+        self.player.wait_for_drain()
+        self.player.close()
     
     def speak_async(self, text):
         self.stop()
@@ -89,26 +46,5 @@ class TTS:
         
 
 if __name__ == "__main__":
-    tts = TTS(3, "kseniya", "v5_1_ru")
-    #tts.speak("Привет, мир!")
-    """
-    text="привет, мир. И снова третье сентября..."
-    speech=[]
-    for word in [text]:
-        print(word)
-        speech.append(tts.generate_speech(word))
-
-    sd.play(speech[0],48000)
-    speech.pop(0)
-
-    while True:
-        if  not sd.get_stream().active and len(speech)>0:
-            sd.play(speech[0],48000)
-            speech.pop(0)
-            """
-
-    tts.speak_async("привет, мир! И снова 3 сентября...")
-    #time.sleep(5)
-    #tts.stop()
-    #tts.speak_async("Translation: To go to Office, press the  button and search for in the search bar.")
-    input()
+    tts = TTS(1)
+    tts.speak("Привет, мир!")

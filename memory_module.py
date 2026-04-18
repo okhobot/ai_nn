@@ -13,7 +13,7 @@ class MemoryModule:
             self.mem_data = json.load(f)
             print(self.mem_data)
 
-        self.model = SentenceTransformer("google/embeddinggemma-300m", token="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")
+        self.model = SentenceTransformer("google/embeddinggemma-300m")
             
     def request(self, query, res_count=1):
         res_count = min(res_count, len(self.mem_data["text"]))

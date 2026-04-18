@@ -1,3 +1,8 @@
+from config_manager import ConfigManager
+cm=ConfigManager()
+cm.load_config()
+cm.set_hf_env()
+
 from llama_cpp import Llama
 import nn
 from tts import TTS
@@ -33,36 +38,27 @@ class Talker:
         self.tts.stop()
 
 class Ai_NN:
-    def __init__(self, path_to_config="config/config.json"):
+    def __init__(self, json_config):
         self.text_to_say = ""
         self.mem_notes = []
-        with open(path_to_config, 'r', encoding='utf-8') as f: 
-            self.json_config = json.load(f)
-        if self.json_config["cache_dir"] == "":
-            self.json_config["cache_dir"] = None
+        self.json_config=json_config
         
         self.neuro = nn.NN(
             repo_id=self.json_config["model"]["repo_id"], 
             filename=self.json_config["model"]["filename"],
-            cache_dir=self.json_config["cache_dir"],
-            hf_token=self.json_config["hf_token"],
-            use_gpu=True, 
-            offline=self.json_config["offline"],
+            use_gpu=self.json_config["model"]["use_gpu"],
             save_history_count=2
             )
 
         self.tts = TTS(
             pitch_shift=self.json_config["tts"]["pitch_shift"],
             speaker=self.json_config["tts"]["speaker_name"],
-            cache_dir=self.json_config["cache_dir"],
-            offline=self.json_config["offline"]
             )
 
         self.stt = STT(
             call_func=self.on_input_text, 
             model_size=self.json_config["stt"]["model"],
             device=self.json_config["stt"]["device"],
-            cache_dir=self.json_config["cache_dir"], 
             use_nr=self.json_config["stt"]["use_nr"]
             )
         
@@ -170,11 +166,11 @@ class Ai_NN:
     def get_text_to_say(self):
         return self.text_to_say
 
-ai_nn = Ai_NN()
+ai_nn = Ai_NN(cm.get_json_config())
 if __name__ == "__main__":
     while True:
-        #ai_nn.calibrate(2)
-        #ai_nn.start_recognition()
-        #input()
-        ai_nn.chat(input(">>"))
-        #ai_nn.stop_recognition()
+        ai_nn.calibrate(2)
+        ai_nn.start_recognition()
+        input()
+        #ai_nn.chat(input(">>"))
+        ai_nn.stop_recognition()

@@ -14,8 +14,8 @@ class STT:
     record_thread = None
     func_thread = None
     
-    def __init__(self, call_func, model_size="base", device="cpu", silence_threshold=500, silence_duration=1, gain_factor=1, use_nr=False, device_index=-1, cache_dir=None):
-        self.model = WhisperModel(model_size, device=device, compute_type="int8", download_root=cache_dir)
+    def __init__(self, call_func, model_size="base", device="cpu", silence_threshold=500, silence_duration=1, gain_factor=1, use_nr=False, device_index=-1):
+        self.model = WhisperModel(model_size, device=device, compute_type="int8")
         self.audio_queue = queue.Queue()
         self.run = False
         self.use_nr = use_nr
