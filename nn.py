@@ -25,6 +25,7 @@ class NN:
 
         self.llm = Llama(
         model_path=model_path,
+        
         n_gpu_layers=-1 if use_gpu else 0,
         n_threads=8,
         n_ctx=n_ctx,
@@ -88,3 +89,8 @@ class NN:
             "type": "text",
             "text": text
         }
+    def make_image_object(self, img):
+        return {
+            "type": "image_url", 
+            "image_url": {"url": f"data:image/png;base64,{img}"}
+            }

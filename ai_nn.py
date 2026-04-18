@@ -14,6 +14,7 @@ import subprocess
 import json
 import os
 from memory_module import MemoryModule
+from screen_capture import ScreenCapture
 
 class Talker:
     def __init__(self, tts):
@@ -42,6 +43,9 @@ class Ai_NN:
         self.text_to_say = ""
         self.mem_notes = []
         self.json_config=json_config
+
+        self.input_text=""
+        self.screen_capture = ScreenCapture()
         
         self.neuro = nn.NN(
             repo_id=self.json_config["model"]["repo_id"], 
@@ -126,6 +130,18 @@ class Ai_NN:
     
         self.process_calls(text_blocks, self.chat, depth)
 
+    def nn_request(self, scale_factor=1):
+        content=[]
+        if self.input_text!="":
+            content.append(self.neuro.make_text_object(self.input_text))
+            self.input_text = ""
+        content.append(self.neuro.make_image_object(self.screen_capture.capture_to_base64(scale_factor)))
+        #print(content)
+        return self.neuro.chat(content)
+    
+    def send_text_input(self, text):
+        self.input_text = text
+
     def split_calls(self, text):
         text, save_note = self.split_com_blocks(text, "_save")
         text, find_query = self.split_com_blocks(text, "_find")
@@ -157,6 +173,7 @@ class Ai_NN:
         func_thread.daemon = True
         func_thread.start()
         
+        
     def stop_recognition(self):
         self.stt.stop()
     
@@ -169,8 +186,11 @@ class Ai_NN:
 ai_nn = Ai_NN(cm.get_json_config())
 if __name__ == "__main__":
     while True:
-        ai_nn.calibrate(2)
-        ai_nn.start_recognition()
-        input()
+        #ai_nn.calibrate(2)
+        #ai_nn.start_recognition()
+        #input()
         #ai_nn.chat(input(">>"))
-        ai_nn.stop_recognition()
+        #ai_nn.stop_recognition()
+        ai_nn.send_text_input(input())
+        print(ai_nn.nn_request(1))
+        
