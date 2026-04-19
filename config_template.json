@@ -3,12 +3,14 @@
     "hf_token": "__your_token__",
     "offline": false,
     "model": {
-        "repo_id": "__model_repo__",
-        "filename": "__model_file__",
+        "repo_id": "unsloth/gemma-4-E4B-it-GGUF",
+        "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
+        "mmproj_filename": "mmproj-F16.gguf",
         "init_prompt_path": "config/init_prompt.txt",
         "init_prompt_role": "user",
         "max_console_op_depth": 1,
-        "load_embeddings_count": 2
+        "load_embeddings_count": 2,
+        "use_gpu": true
     },
     "tts": {
         "pitch_shift": 1,

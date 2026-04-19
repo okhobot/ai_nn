@@ -50,6 +50,7 @@ class Ai_NN:
         self.neuro = nn.NN(
             repo_id=self.json_config["model"]["repo_id"], 
             filename=self.json_config["model"]["filename"],
+            mmproj_filename=self.json_config["model"].get("mmproj_filename"),
             use_gpu=self.json_config["model"]["use_gpu"],
             save_history_count=2
             )
@@ -183,8 +184,9 @@ class Ai_NN:
     def get_text_to_say(self):
         return self.text_to_say
 
-ai_nn = Ai_NN(cm.get_json_config())
+
 if __name__ == "__main__":
+    ai_nn = Ai_NN(cm.get_json_config())
     while True:
         #ai_nn.calibrate(2)
         #ai_nn.start_recognition()

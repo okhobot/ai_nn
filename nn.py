@@ -1,15 +1,18 @@
 from llama_cpp import Llama
+from llama_cpp.llama_chat_format import Llava15ChatHandler, Qwen25VLChatHandler
 import random
+import os
 from huggingface_hub import hf_hub_download
 
 class NN:
     llm = None
+    chat_handler = None
     history = []
     reset_history_count = 0
     save_history_count = 0
     max_history_len = 0
     
-    def __init__(self, repo_id, filename, use_gpu=False, n_ctx=32768, max_history_len=10, reset_history_count=4, save_history_count=0, offline=False): 
+    def __init__(self, repo_id, filename, use_gpu=False, n_ctx=32768, max_history_len=10, reset_history_count=4, save_history_count=0, mmproj_filename=None): 
         #hf_token=""
         #with open(token_path) as tokenf: hf_token=tokenf.read().strip() 
         
@@ -17,18 +20,47 @@ class NN:
         self.reset_history_count = max(save_history_count, reset_history_count)
         self.save_history_count = save_history_count
 
+        print(f"[NN] Downloading model from {repo_id}/{filename}")
+        print(f"[NN] HF_HOME environment: {os.environ.get('HF_HOME', 'NOT SET')}")
+        print(f"[NN] HUGGINGFACE_HUB_CACHE environment: {os.environ.get('HUGGINGFACE_HUB_CACHE', 'NOT SET')}")
+        
         model_path = hf_hub_download(
         repo_id=repo_id,
         filename=filename,
-        local_files_only=offline 
         )
+        
+        print(f"[NN] Model downloaded to: {model_path}")
+
+        # Initialize chat handler for multimodal support if mmproj file is provided
+        if mmproj_filename:
+            try:
+                print(f"[NN] Downloading mmproj from {repo_id}/{mmproj_filename}")
+                mmproj_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=mmproj_filename
+                )
+                print(f"[NN] Multimodal projector downloaded to: {mmproj_path}")
+                print(f"Loading multimodal projector from: {mmproj_path}")
+                self.chat_handler = Qwen25VLChatHandler(
+                    clip_model_path=mmproj_path,
+                    #n_gpu_layers=-1 if use_gpu else 0,
+                    verbose=False
+                )
+                print("Multimodal projector loaded successfully")
+            except Exception as e:
+                print(f"Warning: Failed to load multimodal projector: {e}")
+                print("Model will run in text-only mode")
+                self.chat_handler = None
+        else:
+            print("No mmproj file specified. Running in text-only mode.")
+            self.chat_handler = None
 
         self.llm = Llama(
         model_path=model_path,
-        
         n_gpu_layers=-1 if use_gpu else 0,
         n_threads=8,
         n_ctx=n_ctx,
+        chat_handler=self.chat_handler,
         verbose=False
         )
 
