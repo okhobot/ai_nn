@@ -1,5 +1,5 @@
 from llama_cpp import Llama
-from llama_cpp.llama_chat_format import Llava15ChatHandler, Qwen25VLChatHandler
+from llama_cpp.llama_chat_format import NanoLlavaChatHandler, MoondreamChatHandler
 import random
 import os
 from huggingface_hub import hf_hub_download
@@ -41,8 +41,9 @@ class NN:
                 )
                 print(f"[NN] Multimodal projector downloaded to: {mmproj_path}")
                 print(f"Loading multimodal projector from: {mmproj_path}")
-                self.chat_handler = Qwen25VLChatHandler(
+                self.chat_handler = NanoLlavaChatHandler(
                     clip_model_path=mmproj_path,
+                    
                     #n_gpu_layers=-1 if use_gpu else 0,
                     verbose=False
                 )
@@ -71,19 +72,40 @@ class NN:
                 self.history.pop(2)
                 self.history.pop(2)
             self.llm.reset()
+
+    def replace_objects_in_history(self, objects):
+        text_only = None
+        if isinstance(objects, list):
+            text_only = [obj for obj in objects if isinstance(obj, dict) and obj.get('type') == 'text']
+        self.history[-1] = {
+            "role": self.history[-1]["role"],
+            "content": text_only if text_only else objects
+        }
     def chat(self, objects, max_new_tokens=128, role="user"):
         self.clip_history()
 
         self.history.append({
-                "role": role,
-                "content": objects
-            })
+            "role": role,
+            "content": objects
+        })
+        
         response = self.llm.create_chat_completion(self.history, temperature=0.5, max_tokens=max_new_tokens)
+        
+        self.replace_objects_in_history(objects)
+        
         self.history.append(response['choices'][0]['message'])
+        #print(self.history)
         return response['choices'][0]['message']['content']
     
     def chat_async(self, objects, max_new_tokens=128, role="user"):
         self.clip_history()
+        
+
+        self.history.append({
+            "role": role,
+            "content": objects
+        })
+        
         # Create a streaming completion request
         response = self.llm.create_chat_completion(
             self.history, 
@@ -106,8 +128,10 @@ class NN:
         
         # After streaming is done, append the complete message to history
         accumulated_message['content'] = full_response
+        
+        #self.replace_objects_in_history(objects)
+        
         self.history.append(accumulated_message)
-
 
     def chat_no_history(self, objects, max_new_tokens=128, role="user"):
         self.llm.reset()

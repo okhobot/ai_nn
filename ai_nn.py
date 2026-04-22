@@ -194,5 +194,5 @@ if __name__ == "__main__":
         #ai_nn.chat(input(">>"))
         #ai_nn.stop_recognition()
         ai_nn.send_text_input(input())
-        print(ai_nn.nn_request(1))
+        print(ai_nn.nn_request(2))
         
