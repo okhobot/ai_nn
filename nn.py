@@ -1,5 +1,5 @@
 from llama_cpp import Llama
-from llama_cpp.llama_chat_format import NanoLlavaChatHandler, MoondreamChatHandler
+from llama_cpp.llama_chat_format import NanoLlavaChatHandler
 import random
 import os
 from huggingface_hub import hf_hub_download
@@ -43,8 +43,6 @@ class NN:
                 print(f"Loading multimodal projector from: {mmproj_path}")
                 self.chat_handler = NanoLlavaChatHandler(
                     clip_model_path=mmproj_path,
-                    
-                    #n_gpu_layers=-1 if use_gpu else 0,
                     verbose=False
                 )
                 print("Multimodal projector loaded successfully")
@@ -94,12 +92,10 @@ class NN:
         self.replace_objects_in_history(objects)
         
         self.history.append(response['choices'][0]['message'])
-        #print(self.history)
         return response['choices'][0]['message']['content']
     
     def chat_async(self, objects, max_new_tokens=128, role="user"):
         self.clip_history()
-        
 
         self.history.append({
             "role": role,
@@ -129,9 +125,10 @@ class NN:
         # After streaming is done, append the complete message to history
         accumulated_message['content'] = full_response
         
-        #self.replace_objects_in_history(objects)
+        self.replace_objects_in_history(objects)
         
         self.history.append(accumulated_message)
+        #print(self.history)
 
     def chat_no_history(self, objects, max_new_tokens=128, role="user"):
         self.llm.reset()

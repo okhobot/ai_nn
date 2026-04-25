@@ -16,27 +16,6 @@ import os
 from memory_module import MemoryModule
 from screen_capture import ScreenCapture
 
-class Talker:
-    def __init__(self, tts):
-        self.tts = tts
-        self.text_to_speak = ""
-    
-    def set_text(self, text):
-        self.text_to_speak = text
-    
-    def talk(self):
-        while True:
-            #print(": "+self.text_to_speak)
-            if self.text_to_speak != "":
-                text = self.text_to_speak
-                self.text_to_speak = ""
-                self.tts.speak_async(text)
-                
-            time.sleep(0.01)
-    
-    def stop(self):
-        self.text_to_speak = ""
-        self.tts.stop()
 
 class Ai_NN:
     def __init__(self, json_config):
@@ -56,8 +35,7 @@ class Ai_NN:
             )
 
         self.tts = TTS(
-            pitch_shift=self.json_config["tts"]["pitch_shift"],
-            speaker=self.json_config["tts"]["speaker_name"],
+            speaker=self.json_config["tts"]["speaker_name"]
             )
 
         self.stt = STT(
@@ -69,8 +47,6 @@ class Ai_NN:
         
         self.mem_module = MemoryModule("config/mem_data.json")
                 
-        self.talker = Talker(self.tts)
-
         with open(self.json_config["model"]["init_prompt_path"], encoding="utf-8") as f:
             print(self.neuro.chat(f.read(), role=self.json_config["model"]["init_prompt_role"]))
 
@@ -99,25 +75,9 @@ class Ai_NN:
         
         return remaining, blocks
 
-    def on_input_text(self, text, depth=0):
-        self.mem_notes = self.mem_module.request(text, self.json_config["model"]["load_embeddings_count"])
-        if len(self.mem_notes) > 0: text = text + "\nзаметки: \n" + "\n".join(self.mem_notes)
-        print(">> " + text)
-        self.tts.stop()
-        res = self.neuro.chat(text)
-        text, text_blocks = self.split_calls(res)
-        
-        print(res)
-        print(text)
-
-        if len(text) == 0:
-            text = "ладно"
-        
-        #talker.set_text(res)
-        text_to_say = text  # исправлено имя переменной
-        self.tts.speak(text)
-
-        self.process_calls(text_blocks, self.on_input_text, depth)
+    def on_input_text(self, text):
+        self.input_text=text
+        self.nn_request(add_image=True,scale_factor=2)
 
     def chat(self, text, depth=0):
         self.mem_notes = self.mem_module.request(text, self.json_config["model"]["load_embeddings_count"])
@@ -131,16 +91,42 @@ class Ai_NN:
     
         self.process_calls(text_blocks, self.chat, depth)
 
-    def nn_request(self, scale_factor=1):
-        content=[]
+    def nn_request(self, depth=0, add_image=False, scale_factor=1):
         if self.input_text!="":
+            self.mem_notes = self.mem_module.request(self.input_text, self.json_config["model"]["load_embeddings_count"])
+            if len(self.mem_notes) > 0: self.input_text = self.input_text + "\nзаметки: \n" + "\n".join(self.mem_notes)
+            print(">> " + self.input_text)
+            self.tts.stop()
+
+            content=[]
+        
             content.append(self.neuro.make_text_object(self.input_text))
             self.input_text = ""
-        content.append(self.neuro.make_image_object(self.screen_capture.capture_to_base64(scale_factor)))
-        #print(content)
-        return self.neuro.chat(content)
+
+        if add_image:
+            img=self.screen_capture.capture_to_base64(scale_factor)
+            self.screen_capture.save_base64_image(img)
+            content.append(self.neuro.make_image_object(img))
+
+        res=""
+        for chunk in self.neuro.chat_async(content):
+            res+=chunk
+
+        text, text_blocks = self.split_calls(res)
+        
+        print(res)
+        #print(text)
+
+        if len(text) == 0:
+            text = "ладно"
     
-    def send_text_input(self, text):
+        self.tts.speak(text)
+
+        self.process_calls(text_blocks, self.nn_request, depth)
+        #print(content)
+        #return self.neuro.chat(content)
+    
+    def set_text_input(self, text):
         self.input_text = text
 
     def split_calls(self, text):
@@ -164,15 +150,13 @@ class Ai_NN:
                 cmd_out += "\n".join(self.run_powershell_command(text))
                 print(cmd_out)
             cmd_out = cmd_out[:2000]
-            if len(cmd_out) > 1 and depth < self.json_config["model"]["max_console_op_depth"]: 
-                callback_func("вывод консоли: " + cmd_out, depth+1)
+            self.input_text="вывод консоли: " + cmd_out+"\n"
+            #if len(cmd_out) > 1 and depth < self.json_config["model"]["max_console_op_depth"]: 
+                #callback_func(, depth+1)
 
     def start_recognition(self):
         print("начало диалога")
         self.stt.start()
-        func_thread = threading.Thread(target=self.talker.talk)
-        func_thread.daemon = True
-        func_thread.start()
         
         
     def stop_recognition(self):
@@ -188,11 +172,11 @@ class Ai_NN:
 if __name__ == "__main__":
     ai_nn = Ai_NN(cm.get_json_config())
     while True:
-        #ai_nn.calibrate(2)
-        #ai_nn.start_recognition()
-        #input()
+        ai_nn.calibrate(2)
+        ai_nn.start_recognition()
+        input()
         #ai_nn.chat(input(">>"))
-        #ai_nn.stop_recognition()
-        ai_nn.send_text_input(input())
-        print(ai_nn.nn_request(2))
+        ai_nn.stop_recognition()
+        #ai_nn.send_text_input(input())
+        #print(ai_nn.nn_request(2))
         

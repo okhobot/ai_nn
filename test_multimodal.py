@@ -21,7 +21,7 @@ def test_multimodal():
         repo_id=config["model"]["repo_id"],
         filename=config["model"]["filename"],
         mmproj_filename=config["model"]["mmproj_filename"],
-        use_gpu=False,
+        use_gpu=True,
         n_ctx=8192
     )
     
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         repo_id=config["model"]["repo_id"],
         filename=config["model"]["filename"],
         mmproj_filename=config["model"]["mmproj_filename"],
-        use_gpu=False,
+        use_gpu=True,
         n_ctx=8192
     )
     while True:
