@@ -39,7 +39,7 @@ class Talker:
         self.tts.stop()
 
 class Ai_NN:
-    def __init__(self, json_config):
+    def __init__(self, json_config, history_file_path=None, save_history_count=2):
         self.text_to_say = ""
         self.mem_notes = []
         self.json_config=json_config
@@ -48,7 +48,8 @@ class Ai_NN:
             repo_id=self.json_config["model"]["repo_id"], 
             filename=self.json_config["model"]["filename"],
             use_gpu=self.json_config["model"]["use_gpu"],
-            save_history_count=2
+            save_history_count=save_history_count,
+            history_file_path=history_file_path
             )
 
         self.tts = TTS(
@@ -69,7 +70,10 @@ class Ai_NN:
         self.talker = Talker(self.tts)
 
         with open(self.json_config["model"]["init_prompt_path"], encoding="utf-8") as f:
-            print(self.neuro.chat(f.read(), role=self.json_config["model"]["init_prompt_role"]))
+            print(self.neuro.chat(f.read(), role=self.json_config["model"]["init_prompt_role"], save_chat=False))
+
+    def load_history(self,history_file_path=None):
+        self.neuro.load_history(history_file_path)
 
     def run_powershell_command(self, command):
         """Выполняет команду PowerShell и возвращает результат"""
@@ -170,11 +174,12 @@ class Ai_NN:
 
 
 if __name__ == "__main__":
-    ai_nn = Ai_NN(cm.get_json_config())
+    ai_nn = Ai_NN(cm.get_json_config(),"config/chat_history.json", 6)
+    ai_nn.load_history()
     while True:
-        ai_nn.calibrate(2)
-        ai_nn.start_recognition()
-        input()
-        #ai_nn.chat(input(">>"))
-        ai_nn.stop_recognition()
-        input()
+        #ai_nn.calibrate(2)
+        #ai_nn.start_recognition()
+        #input()
+        ai_nn.chat(input(">>"))
+        #ai_nn.stop_recognition()
+        #input()
