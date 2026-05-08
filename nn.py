@@ -16,7 +16,7 @@ class NN:
         #with open(token_path) as tokenf: hf_token=tokenf.read().strip() 
         self.history_file_path=history_file_path
 
-        self.max_history_len = max(4, max_history_len)
+        self.max_history_len = max(2, max_history_len)
         self.reset_history_count = max(save_history_count, reset_history_count)
         self.save_history_count = save_history_count
 
