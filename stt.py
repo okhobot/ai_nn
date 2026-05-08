@@ -77,7 +77,7 @@ class STT:
         silent_chunks = 0
         record = False
 
-        while True:
+        while self.run:
             data = stream.read(self.chunk)
 
             audio_data = np.frombuffer(data, dtype=np.int16)

@@ -60,7 +60,8 @@ class Ai_NN:
             call_func=self.on_input_text, 
             model_size=self.json_config["stt"]["model"],
             device=self.json_config["stt"]["device"],
-            use_nr=self.json_config["stt"]["use_nr"]
+            use_nr=self.json_config["stt"]["use_nr"],
+            device_index=self.json_config["stt"]["micro_index"]
             )
         
         self.mem_module = MemoryModule("config/mem_data.json")
@@ -167,11 +168,13 @@ class Ai_NN:
     def get_text_to_say(self):
         return self.text_to_say
 
-ai_nn = Ai_NN(cm.get_json_config())
+
 if __name__ == "__main__":
+    ai_nn = Ai_NN(cm.get_json_config())
     while True:
-        #ai_nn.calibrate(2)
-        #ai_nn.start_recognition()
-        #input()
-        ai_nn.chat(input(">>"))
-        #ai_nn.stop_recognition()
+        ai_nn.calibrate(2)
+        ai_nn.start_recognition()
+        input()
+        #ai_nn.chat(input(">>"))
+        ai_nn.stop_recognition()
+        input()

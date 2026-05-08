@@ -19,6 +19,7 @@
     "stt": {
         "model": "base",
         "device": "cpu",
-        "use_nr": true
+        "use_nr": true,
+        "micro_index": -1
     }
 }
