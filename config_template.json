@@ -6,9 +6,11 @@
         "repo_id": "__model_repo__",
         "filename": "__model_file__",
         "init_prompt_path": "config/init_prompt.txt",
+        "chat_history_path": "config/chat_history.json",
         "init_prompt_role": "user",
         "max_console_op_depth": 1,
         "load_embeddings_count": 2,
+        "chat_size": 4,
         "use_gpu" : false
     },
     "tts": {

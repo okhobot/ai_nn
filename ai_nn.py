@@ -39,17 +39,20 @@ class Talker:
         self.tts.stop()
 
 class Ai_NN:
-    def __init__(self, json_config, history_file_path=None):
+    def __init__(self, json_config):
         self.text_to_say = ""
         self.mem_notes = []
         self.json_config=json_config
+
+        chat_history_path=self.json_config["model"]["chat_history_path"]
+        if len(chat_history_path)==0: chat_history_path=None
         
         self.neuro = nn.NN(
             repo_id=self.json_config["model"]["repo_id"], 
             filename=self.json_config["model"]["filename"],
             use_gpu=self.json_config["model"]["use_gpu"],
             save_history_count=self.json_config["model"]["chat_size"],
-            history_file_path=history_file_path
+            history_file_path=chat_history_path
             )
 
         self.tts = TTS(
@@ -174,7 +177,7 @@ class Ai_NN:
 
 
 if __name__ == "__main__":
-    ai_nn = Ai_NN(cm.get_json_config(),"config/chat_history.json")
+    ai_nn = Ai_NN(cm.get_json_config())
     ai_nn.load_history()
     while True:
         #ai_nn.calibrate(2)
