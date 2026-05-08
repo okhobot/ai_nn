@@ -44,15 +44,15 @@ class Ai_NN:
         self.mem_notes = []
         self.json_config=json_config
 
-        chat_history_path=self.json_config["model"]["chat_history_path"]
-        if len(chat_history_path)==0: chat_history_path=None
+        self.chat_history_path=self.json_config["model"]["chat_history_path"]
+        if len(self.chat_history_path)==0: self.chat_history_path=None
         
         self.neuro = nn.NN(
             repo_id=self.json_config["model"]["repo_id"], 
             filename=self.json_config["model"]["filename"],
             use_gpu=self.json_config["model"]["use_gpu"],
             save_history_count=self.json_config["model"]["chat_size"],
-            history_file_path=chat_history_path
+            history_file_path=self.chat_history_path
             )
 
         self.tts = TTS(
@@ -77,6 +77,12 @@ class Ai_NN:
 
     def load_history(self,history_file_path=None):
         self.neuro.load_history(history_file_path)
+
+    def remove_history(self):
+        try:
+            os.remove(self.chat_history_path)
+        except Exception as e:
+            print(e)
 
     def run_powershell_command(self, command):
         """Выполняет команду PowerShell и возвращает результат"""
@@ -178,6 +184,7 @@ class Ai_NN:
 
 if __name__ == "__main__":
     ai_nn = Ai_NN(cm.get_json_config())
+    ai_nn.remove_history()
     ai_nn.load_history()
     while True:
         #ai_nn.calibrate(2)
