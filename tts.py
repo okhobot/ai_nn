@@ -3,15 +3,18 @@ import sounddevice as sd
 import librosa
 from transformers import T5ForConditionalGeneration, PreTrainedTokenizerFast
 import threading
-import time 
+import time
+import re
+
 
 class TTS:
-    speaker = "kseniya"  # aidar, baya, kseniya, eugene, xenia
-    model = None
-    pitch_shift = 0
-    can_play = True
-    
     def __init__(self, pitch_shift=0, speaker="kseniya", model="v5_1_ru"):
+        """
+        Initialize the Text-to-Speech engine
+        :param pitch_shift: Pitch shift amount
+        :param speaker: Speaker name
+        :param model: Model name
+        """
         model_path = "maximxls/text-normalization-ru-terrible"
         self.tokenizer = PreTrainedTokenizerFast.from_pretrained(model_path)
         self.normalizer = T5ForConditionalGeneration.from_pretrained(model_path)
@@ -19,60 +22,83 @@ class TTS:
         self.speaker = speaker
         self.pitch_shift = pitch_shift
         self.play_thread = None
-        # Загрузка модели
-        self.model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
-                                model='silero_tts',
-                                language='ru',
-                                speaker=model
-                                )
+        self.can_play = True
+        
+        # Load model
+        self.model, _ = torch.hub.load(
+            repo_or_dir='snakers4/silero-models',
+            model='silero_tts',
+            language='ru',
+            speaker=model
+        )
     
     def _normalize_text(self, text):
-        # Проверяем, есть ли что нормализовать
+        """
+        Normalize text before speech synthesis
+        :param text: Input text
+        :return: Normalized text
+        """
         if self._needs_normalization(text):
             inp_ids = self.tokenizer(text, return_tensors="pt").input_ids
             out_ids = self.normalizer.generate(inp_ids, max_new_tokens=512)[0]
             result = self.tokenizer.decode(out_ids, skip_special_tokens=True)
             return result
         else:
-            return text  # возвращаем как есть
+            return text  # return as is
 
     def _needs_normalization(self, text):
-        """Проверяет, нужна ли нормализация"""
-        # Проверяем наличие чисел
+        """
+        Check if text needs normalization
+        :param text: Input text
+        :return: True if normalization is needed
+        """
+        # Check for digits
         if any(c.isdigit() for c in text):
             return True
+        # Check for Latin characters
         if any((c.lower() in "qwertyuiopasdfghjklzxcvbnm") for c in text):
             return True
-        # Проверяем наличие дат (через регулярку)
-        import re
+        # Check for dates (via regex)
         if re.search(r'\d{1,2}[.\-]\d{1,2}[.\-]\d{2,4}', text):
             return True
-        # Проверяем наличие времени
+        # Check for time
         if re.search(r'\d{1,2}:\d{2}', text):
             return True
-        # Проверяем наличие URL/email
+        # Check for URL/email
         if '@' in text or 'http' in text:
             return True
         return False
 
     def generate_speech(self, text):
-        # Генерация речи
+        """
+        Generate speech from text
+        :param text: Input text
+        :return: Audio array
+        """
         self.can_play = True
-        #print(self._normalize_text(text))
-        audio = self.model.apply_tts(text=self._normalize_text(text),
-                                speaker=self.speaker,
-                                sample_rate=48000)
+        audio = self.model.apply_tts(
+            text=self._normalize_text(text),
+            speaker=self.speaker,
+            sample_rate=48000
+        )
         audio_np = audio.numpy()
         audio_shifted = librosa.effects.pitch_shift(audio_np, sr=48000, n_steps=self.pitch_shift)
         return audio_shifted
 
     def speak(self, text):
+        """
+        Speak text synchronously
+        :param text: Text to speak
+        """
         sd.play(self.generate_speech(text), 48000)
         while self.can_play and sd.get_stream().active:
-            #print(self.can_paly)
             time.sleep(0.01)
     
     def speak_async(self, text):
+        """
+        Speak text asynchronously
+        :param text: Text to speak
+        """
         self.stop()
         
         self.play_thread = threading.Thread(target=self.speak, args=(text,))
@@ -80,33 +106,9 @@ class TTS:
         self.play_thread.start()
 
     def stop(self):
+        """
+        Stop current speech playback
+        """
         self.can_play = False
-        #print(self.can_play)
         if self.play_thread and self.play_thread.is_alive():
             self.play_thread.join(timeout=0.1)
-        
-
-if __name__ == "__main__":
-    tts = TTS(3, "kseniya", "v5_1_ru")
-    #tts.speak("Привет, мир!")
-    """
-    text="привет, мир. И снова третье сентября..."
-    speech=[]
-    for word in [text]:
-        print(word)
-        speech.append(tts.generate_speech(word))
-
-    sd.play(speech[0],48000)
-    speech.pop(0)
-
-    while True:
-        if  not sd.get_stream().active and len(speech)>0:
-            sd.play(speech[0],48000)
-            speech.pop(0)
-            """
-
-    tts.speak_async("привет, мир! И снова 3 сентября...")
-    #time.sleep(5)
-    #tts.stop()
-    #tts.speak_async("Translation: To go to Office, press the  button and search for in the search bar.")
-    input()

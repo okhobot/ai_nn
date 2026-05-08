@@ -10,11 +10,20 @@ import noisereduce as nr
 
 
 class STT:
-    transcribe_thread = None
-    record_thread = None
-    func_thread = None
-    
-    def __init__(self, call_func, model_size="base", device="cpu", silence_threshold=500, silence_duration=1, gain_factor=1, use_nr=False, device_index=-1):
+    def __init__(self, call_func, model_size="base", device="cpu", 
+                 silence_threshold=500, silence_duration=1, 
+                 gain_factor=1, use_nr=False, device_index=-1):
+        """
+        Initialize the Speech-to-Text engine
+        :param call_func: Callback function to call when text is recognized
+        :param model_size: Size of the ASR model
+        :param device: Device to run the model on ('cpu' or 'cuda')
+        :param silence_threshold: Threshold for detecting silence
+        :param silence_duration: Duration of silence to stop recording
+        :param gain_factor: Audio gain factor
+        :param use_nr: Whether to use noise reduction
+        :param device_index: Audio device index (-1 for default)
+        """
         self.model = WhisperModel(model_size, device=device, compute_type="int8")
         self.audio_queue = queue.Queue()
         self.run = False
@@ -22,56 +31,67 @@ class STT:
 
         self.device_index = device_index
         p = pyaudio.PyAudio()
-        if device_index == -1: 
+        if self.device_index == -1: 
             self.device_index = p.get_default_host_api_info()["index"]
         
-        # Настройки аудио
+        # Audio settings
         self.chunk = 1024
         self.format = pyaudio.paInt16
         self.channels = 1
         self.rate = 16000
-        self.silence_threshold = 500
-        self.silence_duration = 1
-        self.gain_factor = 1
+        self.silence_threshold = silence_threshold
+        self.silence_duration = silence_duration
+        self.gain_factor = gain_factor
         self.call_func = call_func
 
-    def calibrate(self, time=5):
+    def calibrate(self, duration=5):
+        """
+        Calibrate microphone sensitivity
+        :param duration: Calibration duration in seconds
+        """
         p = pyaudio.PyAudio()
-        stream = p.open(format=self.format, channels=self.channels, rate=self.rate,
-                    input=True, frames_per_buffer=self.chunk, 
-                    input_device_index=self.device_index)
+        stream = p.open(
+            format=self.format, 
+            channels=self.channels, 
+            rate=self.rate,
+            input=True, 
+            frames_per_buffer=self.chunk, 
+            input_device_index=self.device_index
+        )
         
-        frames = []
-        # Рассчитываем, сколько фрагментов нужно для 5 секунд записи
-        total_frames = int(self.rate / self.chunk * time)
+        total_frames = int(self.rate / self.chunk * duration)
+        calibration_sum = 0
         
         for i in range(total_frames):
             data = stream.read(self.chunk)
-            # Преобразуем в numpy массив для обработки
             audio_data = np.frombuffer(data, dtype=np.int16)
             audio_data = (audio_data * self.gain_factor).clip(-32768, 32767).astype(np.int16)
             if self.use_nr: 
                 audio_data = nr.reduce_noise(y=audio_data, sr=self.rate)
             
-            self.silence_threshold += np.abs(audio_data).mean()
+            calibration_sum += np.abs(audio_data).mean()
             
         stream.stop_stream()
         stream.close()
-        #frames.append(data)
         
-        # Объединяем все фрагменты в один байтовый поток
-        #full_data = b''.join(frames)
-        self.silence_threshold /= total_frames
+        self.silence_threshold = calibration_sum / total_frames
         self.silence_threshold *= 4
         
-        print("st: ", self.silence_threshold, len(audio_data))
+        print(f"Calibration threshold: {self.silence_threshold}")
 
     def record_audio_block(self):
+        """
+        Record a single block of audio until silence is detected
+        """
         p = pyaudio.PyAudio()
-        stream = p.open(format=self.format, channels=self.channels, rate=self.rate,
-                       input=True, frames_per_buffer=self.chunk, input_device_index=self.device_index)
-        
-        #print("Говорите... (пауза 2 сек для остановки)")
+        stream = p.open(
+            format=self.format, 
+            channels=self.channels, 
+            rate=self.rate,
+            input=True, 
+            frames_per_buffer=self.chunk, 
+            input_device_index=self.device_index
+        )
         
         frames = []
         silent_chunks = 0
@@ -92,25 +112,23 @@ class STT:
             if not record:
                 frames = frames[-int(self.rate / self.chunk * 1):]
             
-            #print(volume)
-            
             if volume < self.silence_threshold:
                 silent_chunks += 1
-            elif self.func_thread == None or not self.func_thread.is_alive():
-                    silent_chunks = 0
-                    if not record: 
-                        print("recording")
-                    record = True
-                    silent_chunks = 0
+            elif self.func_thread is None or not self.func_thread.is_alive():
+                if not record: 
+                    print("Recording...")
+                record = True
+                silent_chunks = 0
             
             if record and silent_chunks > (self.silence_duration * self.rate / self.chunk):
                 break
-        print("recorded")
+                
+        print("Recorded")
         stream.stop_stream()
         stream.close()
         p.terminate()
         
-        # Сохраняем в WAV формат
+        # Save to WAV format
         wav_buffer = io.BytesIO()
         wf = wave.open(wav_buffer, 'wb')
         wf.setnchannels(self.channels)
@@ -119,16 +137,17 @@ class STT:
         wf.writeframes(b''.join(frames))
         wf.close()
 
-        #with open("test.wav", 'wb') as f: f.write(wav_buffer.getvalue())
-        
         wav_buffer.seek(0)
         self.audio_queue.put(wav_buffer)
         
     def transcribe_audio(self):
+        """
+        Transcribe audio from the queue
+        """
         while self.run:
             if not self.audio_queue.empty():
                 wav_buffer = self.audio_queue.get()
-                if self.func_thread != None and self.func_thread.is_alive():
+                if self.func_thread is not None and self.func_thread.is_alive():
                     continue
 
                 segments, info = self.model.transcribe(
@@ -140,7 +159,6 @@ class STT:
                     initial_prompt="Hello, Мир. Привет, World; system"
                 )
                 
-                #print(f"\n--- Распознано ---")
                 res = ""
                 for segment in segments:
                     res += segment.text
@@ -149,16 +167,20 @@ class STT:
                     self.func_thread = threading.Thread(target=self.call_func, args=(res,))
                     self.func_thread.daemon = True
                     self.func_thread.start()
-                    #self.call_func(res)
-                    #print("speech: "+res)
                     
             time.sleep(0.1)
     
     def record_audio(self):
+        """
+        Continuously record audio
+        """
         while self.run:
             self.record_audio_block()
     
     def start(self):
+        """
+        Start the STT engine
+        """
         self.run = True
         self.transcribe_thread = threading.Thread(target=self.transcribe_audio)
         self.transcribe_thread.daemon = True
@@ -169,14 +191,7 @@ class STT:
         self.record_thread.start()
     
     def stop(self):
+        """
+        Stop the STT engine
+        """
         self.run = False
-
-
-if __name__ == "__main__":
-    recognizer = STT(print, "base", use_nr=False, device_index=0)
-    
-    recognizer.calibrate(2)
-    print("start")
-    recognizer.start()
-    input()
-    recognizer.stop()
