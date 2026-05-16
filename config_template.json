@@ -22,6 +22,7 @@
         "model": "base",
         "device": "cpu",
         "use_nr": true,
+        "silence_duration":1,
         "micro_index": -1
     }
 }

@@ -43,6 +43,7 @@ class STT:
         self.silence_duration = silence_duration
         self.gain_factor = gain_factor
         self.call_func = call_func
+        self.func_thread=None
 
     def calibrate(self, duration=5):
         """

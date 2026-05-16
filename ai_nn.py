@@ -92,7 +92,8 @@ class Ai_NN:
             model_size=self.json_config["stt"]["model"],
             device=self.json_config["stt"]["device"],
             use_nr=self.json_config["stt"]["use_nr"],
-            device_index=self.json_config["stt"]["micro_index"]
+            device_index=self.json_config["stt"]["micro_index"],
+            silence_duration=self.json_config["stt"]["silence_duration"]
         )
         
         self.mem_module = MemoryModule("config/mem_data.json")
@@ -280,8 +281,11 @@ def main():
     ai_nn = Ai_NN(cm.get_json_config())
     ai_nn.remove_history()
     ai_nn.load_history()
-    while True:
-        ai_nn.chat(input(">>"))
+    #while True:
+    #    ai_nn.chat(input(">>"))
+    ai_nn.start_recognition()
+    input()
+    ai_nn.stop_recognition()
 
 
 # Allow the module to be run as a script
