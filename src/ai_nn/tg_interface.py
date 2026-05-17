@@ -2,10 +2,12 @@ import os
 import sys
 from telebot import TeleBot
 
-# Add the current directory to Python path to allow importing local modules
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from nn import NN
+try:
+    # Try relative import when used as part of the package
+    from .nn import NN
+except ImportError:
+    # Fall back to absolute import when run as a script
+    from nn import NN
 
 
 TOKEN = ""

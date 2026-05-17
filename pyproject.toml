@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -48,4 +48,8 @@ Homepage = "https://github.com/your-repo/ai_nn"
 Repository = "https://github.com/your-repo/ai_nn"
 
 [project.scripts]
-ai-nn = "ai_nn:main"
+ai-nn = "ai_nn.ai_nn:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["ai_nn"]

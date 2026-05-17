@@ -5,23 +5,21 @@ import subprocess
 import json
 import os
 
-# Handle imports with fallback for both package and script usage
+# Используем разные методы импорта в зависимости от контекста запуска
 try:
-    # Try relative imports when used as a package
+    # Пытаемся импортировать как относительные импорты (для использования как модуль)
     from .config_manager import ConfigManager
     from .nn import NN
     from .tts import TTS
     from .stt import STT
     from .memory_module import MemoryModule
-    USING_RELATIVE_IMPORTS = True
 except ImportError:
-    # Fall back to absolute imports when run as a script
+    # Если это не удалось, используем абсолютные импорты (для прямого запуска)
     from config_manager import ConfigManager
     from nn import NN
     from tts import TTS
     from stt import STT
     from memory_module import MemoryModule
-    USING_RELATIVE_IMPORTS = False
 
 
 class Talker:
