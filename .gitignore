@@ -5,3 +5,4 @@ config
 test
 *.wav
 cache
+*.egg-info
