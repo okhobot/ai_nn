@@ -2,6 +2,7 @@ import re
 import threading
 import time
 import subprocess
+import platform
 import json
 import os
 
@@ -118,18 +119,24 @@ class Ai_NN:
         except Exception as e:
             print(f"Error removing history: {e}")
 
+    
+
     def run_powershell_command(self, command):
-        """
-        Execute a PowerShell command and return the result
-        :param command: Command to execute
-        :return: Tuple of (stdout, stderr)
-        """
         try:
+            # Определяем команду в зависимости от ОС
+            if platform.system() == "Windows":
+                cmd = ["powershell", "-Command", command]
+                encoding = 'cp866'
+            else:
+                # PowerShell Core на Linux/macOS
+                cmd = ["pwsh", "-Command", command]
+                encoding = 'utf-8'
+            
             result = subprocess.run(
-                ["powershell", "-Command", command],
+                cmd,
                 capture_output=True,
                 text=True,
-                encoding='cp866'  # or 'utf-8', 'cp1251'
+                encoding=encoding
             )
             return result.stdout, result.stderr
         except Exception as e:
